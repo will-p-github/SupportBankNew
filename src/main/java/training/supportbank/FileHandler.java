@@ -1,12 +1,17 @@
 package training.supportbank;
 
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+
 import java.io.BufferedReader;
+import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
+
 
 import static training.supportbank.Main.LOGGER;
 
@@ -16,6 +21,27 @@ public class FileHandler {
     private static LocalDate DEFAULT_DATE = LocalDate.parse("15/01/1990", formatter);
 
     public static void readFile(String filepath) throws IOException {
+
+        String extension = "";
+
+        int dotPos = filepath.lastIndexOf(".");
+        if (dotPos > 0) {
+            extension = filepath.substring(dotPos+1).toLowerCase();
+        }
+
+        if (extension.equals("csv")) {
+            LOGGER.info("csv file detected, running readCSV()");
+            readCSV(filepath);
+        } else if (extension.equals("json")) {
+            LOGGER.info("json file detected, running readJSON()");
+            readJSON(filepath);
+        } else {
+            LOGGER.error("file type invalid, no transaction data read");
+            System.out.println("Invalid file type detected, please make sure input is of either csv or json type");
+        }
+    }
+
+    public static void readCSV(String filepath) throws IOException {
 
         String row;
 
@@ -31,6 +57,19 @@ public class FileHandler {
         }
 
         csvReader.close();
+
+    }
+
+    public static void readJSON(String filepath) {
+
+        GsonBuilder gsonBuilder = new GsonBuilder();
+        gsonBuilder.registerTypeAdapter(Transaction.class, new TransactionDeserialiser());
+        Gson gson = gsonBuilder.create();
+
+        
+
+        AccountBook.addTransaction(gson.fromJson(jsonString, Transaction.class));
+
     }
 
     public static Transaction processDataCreateTransaction(String[] transactionData) {
@@ -54,6 +93,7 @@ public class FileHandler {
             return new Transaction(date, from, to, reference, amount);
 
         } catch(NumberFormatException e2) {
+            LOGGER.error("Transaction amount '" + transactionData[4] + "' is not a number.");
             System.out.println("Transaction amount invalid");
             return null;
         }
